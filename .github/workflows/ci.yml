@@ -1,0 +1,35 @@
+name: CI
+on:
+  push: { branches: [main] }
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: { python: ["3.10", "3.11", "3.12", "3.13"] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ matrix.python }}" }
+      - run: pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -t . -v
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements-dev.txt && playwright install --with-deps chromium
+      - run: python tests/e2e_browser.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: screenshots, path: docs/screenshots }
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t netsentinel .
+      - run: |
+          docker run -d --name ns -p 8765:8765 netsentinel
+          for i in $(seq 1 20); do curl -fs localhost:8765/api/ping && break || sleep 1; done
+          curl -fs localhost:8765/api/ping

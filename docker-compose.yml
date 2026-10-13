@@ -1,0 +1,22 @@
+# Scanner + demo + dashboard (works on Linux, macOS and Windows Docker Desktop).
+# For live packet capture on a Linux host, add the sensor override:
+#   docker compose -f docker-compose.yml -f docker-compose.sensor.yml up -d
+services:
+  netsentinel:
+    build: .
+    ports:
+      - "127.0.0.1:8765:8765"        # change to "8765:8765" only behind a TLS reverse proxy
+    volumes:
+      - netsentinel-data:/data
+    environment:
+      # NETSENTINEL_ALLOWED_HOSTS: netsentinel.example.com
+      # NETSENTINEL_SECURE_COOKIES: "1"      # when served over HTTPS
+      # NETSENTINEL_TRUST_PROXY: "1"         # when behind nginx/Caddy/Traefik
+      NETSENTINEL_SETUP_CODE: ${NETSENTINEL_SETUP_CODE:-}   # optional; otherwise printed in `docker compose logs`
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    restart: unless-stopped
+volumes:
+  netsentinel-data:

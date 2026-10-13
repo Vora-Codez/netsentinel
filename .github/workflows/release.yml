@@ -1,0 +1,32 @@
+name: Release exe
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  windows-exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt pyinstaller
+      - run: pyinstaller netsentinel.spec
+      - name: Smoke test the exe
+        shell: pwsh
+        run: |
+          $env:NETSENTINEL_HOME = "$PWD\smoke-data"
+          $p = Start-Process dist\NetSentinel.exe -PassThru -WindowStyle Hidden
+          Start-Sleep 8
+          $r = Invoke-WebRequest http://127.0.0.1:8765/api/session -UseBasicParsing
+          if ($r.StatusCode -ne 200) { throw "exe did not serve" }
+          Stop-Process $p.Id -Force
+      - run: Compress-Archive dist\NetSentinel.exe NetSentinel-windows.zip
+        shell: pwsh
+      - uses: actions/upload-artifact@v4
+        with: { name: NetSentinel.exe, path: dist/NetSentinel.exe }
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with: { files: "dist/NetSentinel.exe" }

@@ -1,0 +1,9 @@
+# Live capture (Linux hosts only): shares the host network so NetSentinel sees real traffic.
+services:
+  netsentinel:
+    network_mode: host
+    ports: !reset []
+    cap_add: [NET_RAW, NET_ADMIN]
+    environment:
+      NETSENTINEL_HOST: 127.0.0.1     # reach it through a reverse proxy or an SSH tunnel
+      NETSENTINEL_AUTOCAPTURE: "1"
