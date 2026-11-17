@@ -35,7 +35,7 @@ Built for people who aren't network experts: every alert says *what was seen*, *
 
 ## Single-file Windows app
 
-Download `NetSentinel.exe` from the [Releases](../../releases) page (built automatically by GitHub Actions when a `v*` tag is pushed).
+Download `NetSentinel.exe` from the [Releases](../../releases) page.
 Double-click it: a console window opens (it shows the first-run setup code), your browser opens to `http://127.0.0.1:8765`, and your data is kept in a `NetSentinel-data` folder next to the exe.
 Live packet capture needs [Npcap](https://npcap.com) installed and the exe started with **Run as administrator**; scanning and everything else works without either.
 Windows SmartScreen may warn about an unsigned app: choose *More info, Run anyway*. To change the exe's icon, replace `assets/icon.ico` (multi-size .ico, 256x256 max) and rebuild. To build it yourself: `pip install -r requirements.txt pyinstaller && pyinstaller netsentinel.spec`.
