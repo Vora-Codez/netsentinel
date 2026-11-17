@@ -22,12 +22,20 @@ SCHEMA = [
     """CREATE TABLE IF NOT EXISTS audit (
         id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, username TEXT,
         action TEXT NOT NULL, detail TEXT, ip TEXT)""",
+    """CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE, user_id INTEGER NOT NULL,
+        created REAL NOT NULL, last_seen REAL NOT NULL, ip TEXT, user_agent TEXT)""",
+    "CREATE INDEX IF NOT EXISTS sessions_user ON sessions (user_id)",
 ]
 # columns added after v2 -> upgrade old databases in place
 MIGRATIONS = {
     "alerts": {"rule_id": "TEXT", "last_seen": "TEXT", "count": "INTEGER DEFAULT 1",
                "source": "TEXT DEFAULT 'live'"},
     "scans": {"run_id": "TEXT", "service": "TEXT", "risk": "TEXT"},
+    # v3.1 account security
+    "users": {"last_login_ip": "TEXT", "totp_secret": "TEXT", "totp_enabled": "INTEGER DEFAULT 0",
+              "totp_last_step": "INTEGER DEFAULT -1", "recovery_codes": "TEXT DEFAULT '[]'",
+              "must_change_pw": "INTEGER DEFAULT 0", "pw_changed": "TEXT"},
 }
 
 

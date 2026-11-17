@@ -147,11 +147,14 @@ class RoleTests(WebCase):
         self.assertNotIn("pw_hash", self.as_("alice").get("/api/users").get_data(as_text=True))
 
     def test_change_own_password(self):
+        other = self.app.test_client()                              # carol is also signed in elsewhere
+        other.post("/api/login", json={"username": "carol", "password": PASSWORD}, headers=H)
         r = self.post("carol", "/api/account/password", {"current": "wrong wrong wrong", "new": "another long password"})
         self.assertEqual(r.status_code, 403)
         r = self.post("carol", "/api/account/password", {"current": PASSWORD, "new": "another long password"})
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(self.as_("carol").get("/api/status").status_code, 401)
+        self.assertEqual(self.as_("carol").get("/api/status").status_code, 200)   # this browser stays signed in
+        self.assertEqual(other.get("/api/status").status_code, 401)               # every other session is ended
         ok = self.app.test_client().post("/api/login", json={"username": "carol", "password": "another long password"}, headers=H)
         self.assertEqual(ok.status_code, 200)
 
@@ -270,6 +273,7 @@ class SafetyTests(unittest.TestCase):
                      "('Port Scan Detected','medium','T1046','1.1.1.1','2.2.2.2','old','2026-09-23T01:58:19')")
         conn.commit(); conn.close()
         db = Database(d / "old.db")
+        self.addCleanup(db.close)
         row = db.query("SELECT * FROM alerts")[0]
         self.assertEqual((row["description"], row["count"], row["source"]), ("old", 1, "live"))
         from netsentinel.alerts import AlertManager

@@ -114,6 +114,18 @@ class DetectionTests(CoreCase):
             self.ev(100 + i * .1, "10.0.0.67", "192.168.1.50", 1000 + i)
         self.assertTrue(self.core.alerts.log_path.exists())
 
+    def test_tracking_tables_stay_bounded_under_address_spray(self):
+        self.eng.MAX_WINDOWS = 500
+        for i in range(10_000):   # every packet goes to a new address
+            self.eng.process({"ts": 100 + i * .001, "src_ip": "192.168.1.9", "dst_ip": f"151.101.{i // 250}.{i % 250 + 1}",
+                              "protocol": "TCP", "dst_port": 443, "flags": "S", "length": 64, "source": "live"})
+        eng = self.eng
+        for table in (eng._scan, eng._sweep, eng._beacon, eng._exfil, eng._syn):
+            self.assertLessEqual(len(table), 500)
+        for i in range(15):       # a real scan is still caught after the flood
+            self.ev(200 + i * 0.1, "10.0.0.66", "192.168.1.50", 1000 + i)
+        self.assertIn("port_scan", self.rules())
+
 
 if __name__ == "__main__":
     unittest.main()

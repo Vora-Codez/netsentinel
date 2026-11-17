@@ -1,13 +1,14 @@
-"""Flask app: the web UI and its JSON API, with login, roles and an audit trail.
+"""Flask app: the web UI and its JSON API, with login, two-factor sign-in, roles and an audit trail.
 
 Roles: viewer (read-only) < analyst (scan, capture, demo, review) < admin (settings, users, audit).
-Security: scrypt passwords, signed HttpOnly SameSite=Strict session cookie, per-session CSRF token on
-every state-changing request, Origin check, login lockout, Host allow-list, CSP, no-store API responses,
-sessions revoked when a user's role/password/status changes.
+Security: scrypt passwords, optional TOTP two-factor with recovery codes, server-side sessions (idle
+timeout, 12-hour maximum, listable and revocable), signed HttpOnly SameSite=Strict cookie, per-session
+CSRF token on every state-changing request, Origin check, login lockout per account and per address,
+Host allow-list, CSP, no-store API responses, forced password change for admin-issued passwords.
 """
+import base64
 import functools
 import hmac
-import os
 import secrets
 import socket
 import time
@@ -15,14 +16,21 @@ from datetime import timedelta
 
 from flask import Flask, Response, abort, g, jsonify, render_template, request, session
 
-from . import __version__, knowledge, paths, reports
-from .auth import ROLE_HELP, ROLES, AuthError, LoginThrottle
+from . import __version__, knowledge, mfa, paths, qr, reports
+from .auth import MIN_PASSWORD, ROLE_HELP, ROLES, AuthError, LoginThrottle
 from .capture import CaptureError, capabilities, list_interfaces
 from .env import Env
 from .scanner import PRESETS, ScanError
 from .simulator import SCENARIOS
 
-SESSION_HOURS = 12
+SESSION_HOURS = 12            # absolute maximum session length
+TOUCH_EVERY = 15              # seconds between "last active" updates for one session
+PENDING_2FA_SECONDS = 300     # time allowed between the password step and the code step
+# Endpoints a user may reach while they must choose a new password.
+PW_CHANGE_OK = {"account_password", "account_info"}
+ACCOUNT_EVENTS = ("login", "login_failed", "2fa_failed", "logout", "password_changed", "2fa_enabled",
+                  "2fa_disabled", "recovery_codes_regenerated", "session_revoked", "sessions_revoked",
+                  "signed_out_idle")
 _subnet_cache = [0.0, None]
 
 
@@ -59,13 +67,21 @@ def create_app(core, env=None):
     if env.trust_proxy:
         from werkzeug.middleware.proxy_fix import ProxyFix
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
-    throttle = LoginThrottle()
+    throttle = LoginThrottle()                                  # per address + account: 5 tries, 5 min lock
+    ip_throttle = LoginThrottle(max_fails=20, lock_seconds=600)  # per address, any account: stops password spraying
     app.config["NS_THROTTLE"] = throttle
+    app.config["NS_IP_THROTTLE"] = ip_throttle
     app.config["NS_SETUP_CODE"] = env.setup_code
+
+    def ip():
+        return request.remote_addr or ""
 
     def audit(action, detail=""):
         u = getattr(g, "user", None)
-        core.auth.audit(u["username"] if u else None, action, detail, request.remote_addr or "")
+        core.auth.audit(u["username"] if u else None, action, detail, ip())
+
+    def idle_seconds():
+        return int(core.settings.get("session_idle_minutes")) * 60
 
     # ------------------------------------------------------------ request guard
     @app.before_request
@@ -75,19 +91,34 @@ def create_app(core, env=None):
             host = host.split("]")[0] + "]" if host.startswith("[") else host.split(":")[0]
             if host not in env.allowed_hosts:               # DNS-rebinding defence
                 abort(403)
-        g.user = None
-        uid = session.get("uid")
-        if uid:
-            u = core.auth.get(uid)
-            if u and not u["disabled"] and u["session_epoch"] == session.get("epoch"):
-                g.user = u
+        g.user, g.sid, g.signed_out = None, None, None
+        token = session.get("tok")
+        if token:
+            row, now = core.auth.get_session(token), time.time()
+            user = core.auth.get(row["user_id"]) if row else None
+            if not row or not user or user["disabled"]:
+                g.signed_out = "revoked"
+            elif now - row["last_seen"] > idle_seconds():
+                g.signed_out = "idle"
+                core.auth.audit(user["username"], "signed_out_idle", "", ip())
+            elif now - row["created"] > SESSION_HOURS * 3600:
+                g.signed_out = "expired"
             else:
+                g.user, g.sid = user, row["id"]
+                # Background polling (the dashboard refreshing itself) doesn't count as activity, so an
+                # unattended browser still times out.
+                if request.headers.get("X-NS-Background") != "1" and now - row["last_seen"] > TOUCH_EVERY:
+                    core.auth.touch_session(row["id"], ip())
+            if not g.user:
+                if row:
+                    core.auth.end_session(row["id"])
                 session.clear()
         if request.method in ("POST", "PUT", "PATCH", "DELETE"):
             origin = request.headers.get("Origin")
             if origin and origin.split("://", 1)[-1] != request.host:
                 return _bad("Cross-origin request blocked.", 403)
-            if request.endpoint in ("login", "setup"):
+            # Sign-in steps (and abandoning a half-finished sign-in) happen before there's a CSRF token.
+            if request.endpoint in ("login", "login_2fa", "setup") or (request.endpoint == "logout" and not g.user):
                 if request.headers.get("X-NS-Client") != "1":
                     return _bad("Missing client header.", 403)
             else:
@@ -100,7 +131,9 @@ def create_app(core, env=None):
             @functools.wraps(fn)
             def inner(*a, **kw):
                 if not g.user:
-                    return _bad("Please sign in.", 401)
+                    return _bad(_signed_out_message(), 401, signed_out=g.signed_out)
+                if g.user["must_change_pw"] and request.endpoint not in PW_CHANGE_OK:
+                    return _bad("Choose a new password before continuing.", 403, code="password_change_required")
                 if ROLES[g.user["role"]] < ROLES[role]:
                     audit("denied", f"{request.method} {request.path} needs {role}")
                     return _bad(f"Your account ({g.user['role']}) can't do that. Ask an administrator.", 403)
@@ -108,12 +141,18 @@ def create_app(core, env=None):
             return inner
         return deco
 
+    def _signed_out_message():
+        return {"idle": f"You were signed out after {core.settings.get('session_idle_minutes')} minutes without activity.",
+                "expired": f"Sessions last at most {SESSION_HOURS} hours. Please sign in again.",
+                "revoked": "This session was signed out. Please sign in again."}.get(g.signed_out, "Please sign in.")
+
     @app.after_request
     def headers(resp):
         resp.headers.update({"X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer",
             "Content-Security-Policy": "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; "
                                        "connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
-            "Cross-Origin-Opener-Policy": "same-origin", "Permissions-Policy": "camera=(), microphone=(), geolocation=()"})
+            "Cross-Origin-Opener-Policy": "same-origin", "Cross-Origin-Resource-Policy": "same-origin",
+            "Permissions-Policy": "camera=(), microphone=(), geolocation=()"})
         if env.secure_cookies:
             resp.headers["Strict-Transport-Security"] = "max-age=31536000"
         if request.path.startswith("/api/") or request.path == "/":
@@ -140,10 +179,35 @@ def create_app(core, env=None):
         return v if v in ("live", "simulation") else "all"
 
     def login_user(user):
+        """Start a fresh server-side session (new id, so a pre-login cookie can't be fixated)."""
         session.clear()
         session.permanent = True
-        session.update(uid=user["id"], epoch=user["session_epoch"], csrf=secrets.token_urlsafe(24))
-        g.user = user
+        sid, token = core.auth.create_session(user["id"], ip(), request.headers.get("User-Agent", ""))
+        session.update(tok=token, csrf=secrets.token_urlsafe(24))
+        g.user, g.sid = user, sid
+        core.auth.prune_sessions(idle_seconds(), SESSION_HOURS * 3600)
+        return core.auth.record_login(user["id"], ip())
+
+    def user_payload(u):
+        return {"username": u["username"], "role": u["role"], "totp_enabled": u["totp_enabled"],
+                "must_change_pw": u["must_change_pw"]}
+
+    def pending_2fa():
+        p = session.get("pending")
+        if p and time.time() - p.get("at", 0) <= PENDING_2FA_SECONDS:
+            return p
+        session.pop("pending", None)
+        return None
+
+    def check_password_or_fail(password):
+        key = ("acct", g.user["id"])
+        wait = throttle.wait_time(key)
+        if wait:
+            raise AuthError(f"Too many wrong passwords. Try again in {wait // 60 + 1} minute(s).", 429)
+        if not core.auth.check_password(g.user["id"], password):
+            throttle.fail(key)
+            raise AuthError("Your password is incorrect.", 403)
+        throttle.ok(key)
 
     # ------------------------------------------------------------------ pages
     @app.route("/")
@@ -158,8 +222,11 @@ def create_app(core, env=None):
     @app.route("/api/session")
     def session_info():
         return jsonify({"version": __version__, "setup_required": core.auth.count() == 0,
-                        "user": ({"username": g.user["username"], "role": g.user["role"]} if g.user else None),
-                        "csrf": session.get("csrf") if g.user else None, "roles": ROLE_HELP})
+                        "user": user_payload(g.user) if g.user else None,
+                        "csrf": session.get("csrf") if g.user else None, "roles": ROLE_HELP,
+                        "pending_2fa": bool(not g.user and pending_2fa()),
+                        "signed_out": g.signed_out, "signed_out_message": _signed_out_message() if g.signed_out else "",
+                        "min_password": MIN_PASSWORD, "idle_minutes": core.settings.get("session_idle_minutes")})
 
     @app.route("/api/setup", methods=["POST"])
     def setup():
@@ -167,7 +234,7 @@ def create_app(core, env=None):
         if core.auth.count() > 0:
             return _bad("Setup has already been completed.", 409)
         if not hmac.compare_digest(str(b.get("code", "")).strip().upper(), env.setup_code.upper()):
-            core.auth.audit(None, "setup_failed", "wrong setup code", request.remote_addr or "")
+            core.auth.audit(None, "setup_failed", "wrong setup code", ip())
             return _bad("That setup code is wrong. It's printed in the server log when NetSentinel starts.", 403)
         try:
             user = core.auth.create(b.get("username"), b.get("password"), "admin", first_user=True)
@@ -180,67 +247,225 @@ def create_app(core, env=None):
     @app.route("/api/login", methods=["POST"])
     def login():
         b = body()
-        name = str(b.get("username", "")).strip()
-        key = (request.remote_addr, name.lower())
-        wait = throttle.wait_time(key)
+        name = str(b.get("username", "")).strip()[:64]
+        key, ipkey = (ip(), name.lower()), ("ip", ip())
+        wait = max(throttle.wait_time(key), ip_throttle.wait_time(ipkey))
         if wait:
             return _bad(f"Too many failed attempts. Try again in {wait // 60 + 1} minute(s).", 429)
-        user = core.auth.authenticate(name, str(b.get("password", "")))
+        user = core.auth.authenticate(name, str(b.get("password", ""))[:256])
         if not user:
             throttle.fail(key)
-            core.auth.audit(name[:32], "login_failed", "", request.remote_addr or "")
+            ip_throttle.fail(ipkey)
+            core.auth.audit(name[:32], "login_failed", "wrong username or password", ip())
             return _bad("Wrong username or password.", 401)
         throttle.ok(key)
-        login_user(user)
-        audit("login")
-        return jsonify({"ok": True})
+        if user["totp_enabled"]:
+            session.clear()
+            session["pending"] = {"uid": user["id"], "at": time.time(), "tries": 0}
+            return jsonify({"ok": True, "second_factor": True})
+        prev = login_user(user)
+        audit("login", "password")
+        return jsonify({"ok": True, "previous": prev, "must_change_pw": user["must_change_pw"]})
+
+    @app.route("/api/login/2fa", methods=["POST"])
+    def login_2fa():
+        p = pending_2fa()
+        if not p:
+            return _bad("Your sign-in timed out. Enter your password again.", 401, restart=True)
+        user = core.auth.get(p["uid"])
+        if not user or user["disabled"]:
+            session.clear()
+            return _bad("Wrong username or password.", 401, restart=True)
+        key = ("2fa", ip(), user["id"])
+        wait = throttle.wait_time(key)
+        if wait:
+            return _bad(f"Too many wrong codes. Try again in {wait // 60 + 1} minute(s).", 429)
+        method = core.auth.verify_second_factor(user["id"], str(body().get("code", ""))[:40])
+        if not method:
+            throttle.fail(key)
+            core.auth.audit(user["username"], "2fa_failed", "", ip())
+            p["tries"] = p.get("tries", 0) + 1
+            if p["tries"] >= 5:
+                session.clear()
+                return _bad("Too many wrong codes. Enter your password again.", 401, restart=True)
+            session["pending"] = p
+            return _bad("That code didn't work. Codes change every 30 seconds; check your phone's clock is right.", 401)
+        throttle.ok(key)
+        user = core.auth.get(user["id"])
+        prev = login_user(user)
+        detail = "password + authenticator app" if method == "totp" else f"password + recovery code ({user['recovery_left']} left)"
+        audit("login", detail)
+        return jsonify({"ok": True, "previous": prev, "used_recovery": method == "recovery",
+                        "recovery_left": user["recovery_left"], "must_change_pw": user["must_change_pw"]})
 
     @app.route("/api/logout", methods=["POST"])
     def logout():
         audit("logout")
+        if g.sid:
+            core.auth.end_session(g.sid)
         session.clear()
         return jsonify({"ok": True})
 
+    # ---------------------------------------------------------------- account
+    @app.route("/api/account")
+    @need("viewer")
+    def account_info():
+        u = g.user
+        sessions = core.auth.list_sessions(u["id"])
+        for s in sessions:
+            s["current"] = s["id"] == g.sid
+        return jsonify({"user": {k: u[k] for k in ("username", "role", "created", "last_login", "last_login_ip", "totp_enabled",
+                                                   "recovery_left", "must_change_pw", "pw_changed")},
+                        "sessions": sessions, "idle_minutes": core.settings.get("session_idle_minutes"),
+                        "max_hours": SESSION_HOURS, "min_password": MIN_PASSWORD,
+                        "activity": core.auth.audit_list(25, username=u["username"], actions=ACCOUNT_EVENTS)})
+
     @app.route("/api/account/password", methods=["POST"])
     @need("viewer")
-    def change_password():
+    def account_password():
         b = body()
         try:
-            core.auth.change_own_password(g.user["id"], b.get("current"), b.get("new"))
+            core.auth.change_own_password(g.user["id"], b.get("current"), b.get("new"), keep_session=g.sid)
         except AuthError as e:
             return _bad(str(e), e.status)
-        audit("password_changed")
-        session.clear()                                   # all sessions revoked; sign in again
-        return jsonify({"ok": True, "signed_out": True})
+        audit("password_changed", "other sessions signed out")
+        return jsonify({"ok": True})
+
+    @app.route("/api/account/2fa/setup", methods=["POST"])
+    @need("viewer")
+    def account_2fa_setup():
+        if g.user["totp_enabled"]:
+            return _bad("Two-factor sign-in is already on.", 409)
+        secret = mfa.new_secret()
+        session["totp_setup"] = {"secret": secret, "at": time.time()}
+        uri = mfa.otpauth_uri(secret, g.user["username"])
+        image = "data:image/svg+xml;base64," + base64.b64encode(qr.svg(uri).encode()).decode()
+        return jsonify({"secret": mfa.pretty_secret(secret), "uri": uri, "qr": image})
+
+    @app.route("/api/account/2fa/enable", methods=["POST"])
+    @need("viewer")
+    def account_2fa_enable():
+        b, pending = body(), session.get("totp_setup")
+        if not pending or time.time() - pending.get("at", 0) > 900:
+            return _bad("The setup expired. Start again.", 400)
+        try:
+            check_password_or_fail(b.get("password"))
+        except AuthError as e:
+            return _bad(str(e), e.status)
+        step = mfa.verify(pending["secret"], b.get("code"))
+        if step is None:
+            return _bad("That code didn't match. Type the 6 digits your app shows right now.", 400)
+        codes = core.auth.enable_totp(g.user["id"], pending["secret"], step)
+        session.pop("totp_setup", None)
+        audit("2fa_enabled")
+        return jsonify({"ok": True, "recovery_codes": codes})
+
+    @app.route("/api/account/2fa/disable", methods=["POST"])
+    @need("viewer")
+    def account_2fa_disable():
+        b = body()
+        try:
+            check_password_or_fail(b.get("password"))
+        except AuthError as e:
+            return _bad(str(e), e.status)
+        if not core.auth.verify_second_factor(g.user["id"], str(b.get("code", ""))):
+            return _bad("Enter a current code from your app (or a recovery code) to turn two-factor off.", 400)
+        core.auth.disable_totp(g.user["id"])
+        audit("2fa_disabled")
+        return jsonify({"ok": True})
+
+    @app.route("/api/account/2fa/recovery", methods=["POST"])
+    @need("viewer")
+    def account_2fa_recovery():
+        if not g.user["totp_enabled"]:
+            return _bad("Turn on two-factor sign-in first.", 400)
+        try:
+            check_password_or_fail(body().get("password"))
+        except AuthError as e:
+            return _bad(str(e), e.status)
+        codes = core.auth.new_recovery_codes(g.user["id"])
+        audit("recovery_codes_regenerated")
+        return jsonify({"ok": True, "recovery_codes": codes})
+
+    @app.route("/api/account/sessions/<sid>/revoke", methods=["POST"])
+    @need("viewer")
+    def account_session_revoke(sid):
+        if sid == g.sid:
+            return _bad("That's this browser. Use Sign out instead.", 400)
+        if not core.auth.revoke_session(g.user["id"], sid):
+            return _bad("That session has already ended.", 404)
+        audit("session_revoked", sid)
+        return jsonify({"ok": True})
+
+    @app.route("/api/account/sessions/revoke-others", methods=["POST"])
+    @need("viewer")
+    def account_sessions_revoke_others():
+        n = core.auth.revoke_sessions(g.user["id"], except_id=g.sid)
+        audit("sessions_revoked", f"{n} other session(s)")
+        return jsonify({"ok": True, "revoked": n})
 
     # ------------------------------------------------------------------ users
     @app.route("/api/users")
     @need("admin")
     def users_list():
-        return jsonify({"users": [{k: u[k] for k in ("id", "username", "role", "disabled", "created", "last_login")}
-                                  for u in core.auth.list()], "roles": ROLE_HELP})
+        counts = {r["user_id"]: r["n"] for r in core.db.query("SELECT user_id, COUNT(*) AS n FROM sessions GROUP BY user_id")}
+        users = [{**{k: u[k] for k in ("id", "username", "role", "disabled", "created", "last_login", "last_login_ip",
+                                         "totp_enabled", "must_change_pw")}, "sessions": counts.get(u["id"], 0)}
+                 for u in core.auth.list()]
+        active = [u for u in users if not u["disabled"]]
+        return jsonify({"users": users, "roles": ROLE_HELP,
+                        "summary": {"active": len(active), "with_2fa": sum(u["totp_enabled"] for u in active),
+                                    "admins_without_2fa": [u["username"] for u in active if u["role"] == "admin" and not u["totp_enabled"]]}})
 
     @app.route("/api/users", methods=["POST"])
     @need("admin")
     def users_create():
         b = body()
         try:
-            u = core.auth.create(b.get("username"), b.get("password"), str(b.get("role", "viewer")))
+            u = core.auth.create(b.get("username"), b.get("password"), str(b.get("role", "viewer")),
+                                 must_change=bool(b.get("must_change", True)))
         except AuthError as e:
             return _bad(str(e), e.status)
-        audit("user_created", f"{u['username']} ({u['role']})")
+        audit("user_created", f"{u['username']} ({u['role']})" + (", must choose a new password" if u["must_change_pw"] else ""))
         return jsonify({"ok": True})
 
     @app.route("/api/users/<int:uid>", methods=["POST"])
     @need("admin")
     def users_update(uid):
         b = body()
+        if uid == g.user["id"] and (b.get("role") is not None or b.get("disabled") is not None):
+            return _bad("You can't change your own role or disable yourself. Ask another administrator.")
+        pw = b.get("password")
         try:
-            u = core.auth.update(uid, role=b.get("role"), disabled=b.get("disabled"), password=b.get("password"))
+            u = core.auth.update(uid, role=b.get("role"), disabled=b.get("disabled"), password=pw,
+                                 must_change=True if pw is not None else None)
         except AuthError as e:
             return _bad(str(e), e.status)
         audit("user_updated", f"{u['username']}: " + ", ".join(k for k in ("role", "disabled", "password") if b.get(k) is not None))
         return jsonify({"ok": True})
+
+    @app.route("/api/users/<int:uid>/reset-2fa", methods=["POST"])
+    @need("admin")
+    def users_reset_2fa(uid):
+        if uid == g.user["id"]:
+            return _bad("Manage your own two-factor sign-in from Account.")
+        u = core.auth.get(uid)
+        if not u:
+            return _bad("No such user.", 404)
+        core.auth.disable_totp(uid)
+        core.auth.revoke_sessions(uid)
+        audit("2fa_reset", u["username"])
+        return jsonify({"ok": True})
+
+    @app.route("/api/users/<int:uid>/signout", methods=["POST"])
+    @need("admin")
+    def users_signout(uid):
+        u = core.auth.get(uid)
+        if not u:
+            return _bad("No such user.", 404)
+        n = core.auth.revoke_sessions(uid, except_id=g.sid)
+        audit("user_signed_out", f"{u['username']}: {n} session(s)")
+        return jsonify({"ok": True, "revoked": n})
 
     @app.route("/api/users/<int:uid>/delete", methods=["POST"])
     @need("admin")
@@ -281,10 +506,10 @@ def create_app(core, env=None):
             "latest": core.alerts.list(limit=5, status="open"),
             "last_scan": next((j.summary(False) for j in reversed(core.scans.jobs.values()) if j.status in ("done", "cancelled")), None)})
 
-    @app.route("/api/glossary")
+    @app.route("/api/learn")
     @need("viewer")
-    def glossary():
-        return jsonify({"terms": knowledge.GLOSSARY})
+    def learn():
+        return jsonify(knowledge.learn(core.settings.all()))
 
     # ----------------------------------------------------------------- alerts
     @app.route("/api/alerts")

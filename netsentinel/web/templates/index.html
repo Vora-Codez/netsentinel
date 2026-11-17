@@ -3,215 +3,367 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>NetSentinel</title>
-<link rel="icon" type="image/png" href="/static/icon.png">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
+<script src="{{ url_for('static', filename='theme.js') }}"></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-overview" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.6"/><rect x="14" y="3" width="7" height="5" rx="1.6"/><rect x="14" y="12" width="7" height="9" rx="1.6"/><rect x="3" y="16" width="7" height="5" rx="1.6"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 17V11a6 6 0 1 1 12 0v6l1.5 2h-15z"/><path d="M10 21a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></symbol>
+  <symbol id="i-radar" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12l6.5-6.5"/></symbol>
+  <symbol id="i-devices" viewBox="0 0 24 24"><rect x="2.5" y="4" width="15" height="10.5" rx="1.8"/><path d="M6 18.5h8M10 14.5v4"/><rect x="17.5" y="8.5" width="4.5" height="10" rx="1.2"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14a6 6 0 0 1 3.5 6"/></symbol>
+  <symbol id="i-log" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h7"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M8.5 7.5h7M8.5 11h5"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2.5l8 3v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10v-6z"/></symbol>
+  <symbol id="i-shield-check" viewBox="0 0 24 24"><path d="M12 2.5l8 3v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10v-6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></symbol>
+  <symbol id="i-shield-alert" viewBox="0 0 24 24"><path d="M12 2.5l8 3v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10v-6z"/><path d="M12 8v5M12 16.5h.01"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8L20 3M16.5 6.5l2.5 2.5M14 9l2 2"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/></symbol>
+  <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="4" y="4.5" width="16" height="11" rx="1.6"/><path d="M2 19.5h20"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></symbol>
+  <symbol id="i-packet" viewBox="0 0 24 24"><path d="M12 2.5l8.5 4.8v9.4L12 21.5l-8.5-4.8V7.3z"/><path d="M3.5 7.3L12 12l8.5-4.7M12 12v9.5"/></symbol>
+  <symbol id="i-door" viewBox="0 0 24 24"><path d="M5 21V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v17M3 21h18"/><circle cx="15" cy="12" r="1"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 16l-4-4 4-4M6 12h10"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></symbol>
+</svg>
 
-<!-- SIGN IN / FIRST-RUN SETUP -->
+<!-- SIGN IN / FIRST-RUN SETUP / TWO-FACTOR / NEW PASSWORD -->
 <div class="gate" id="gate" hidden>
-  <form class="gate-card" id="gate-form" autocomplete="on">
-    <div class="brand big">
-      <svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><circle cx="16" cy="16" r="12" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="16" cy="16" r="4.5" fill="currentColor"/></svg>
-      <span>NetSentinel</span>
+  <aside class="gate-hero">
+    <div class="brand"><img src="{{ url_for('static', filename='icon.png') }}" alt="" width="40" height="40"><span>NetSentinel</span></div>
+    <div class="gate-pitch">
+      <h2>See what's happening on your network, in plain English.</h2>
+      <ul class="gate-points">
+        <li><svg class="ic"><use href="#i-radar"/></svg><span>Scan devices for open ports, like Nmap, with every result explained.</span></li>
+        <li><svg class="ic"><use href="#i-pulse"/></svg><span>Watch live traffic, like Wireshark, with automatic threat detection.</span></li>
+        <li><svg class="ic"><use href="#i-target"/></svg><span>Alerts mapped to MITRE ATT&amp;CK, with a built-in guide to every term.</span></li>
+      </ul>
     </div>
-    <h1 id="gate-title">Sign in</h1>
-    <p class="muted" id="gate-sub"></p>
-    <label class="field" id="gate-code-row" hidden><span>Setup code</span>
-      <input id="gate-code" type="text" autocomplete="off" spellcheck="false" placeholder="Printed in the server log">
-      <small class="muted">Shown in the terminal or Docker log when NetSentinel starts. It proves you control the server.</small></label>
-    <label class="field"><span>Username</span><input id="gate-user" type="text" autocomplete="username" required></label>
-    <label class="field"><span>Password</span><input id="gate-pass" type="password" autocomplete="current-password" required>
-      <small class="muted" id="gate-pass-hint" hidden>At least 10 characters. A few random words works well.</small></label>
-    <div class="notice err" id="gate-error" hidden></div>
-    <button id="gate-submit" type="submit">Sign in</button>
-    <p class="muted small">Only scan and monitor networks you own or have permission to test.</p>
-  </form>
+    <p class="gate-foot"><svg class="ic"><use href="#i-shield-check"/></svg> Self-hosted: nothing leaves your server.</p>
+  </aside>
+  <div class="gate-main">
+    <form class="gate-card" id="gate-form" autocomplete="on" novalidate>
+      <div class="gate-icon" id="gate-icon"><svg class="ic"><use href="#i-shield"/></svg></div>
+      <h1 id="gate-title">Sign in</h1>
+      <p class="muted" id="gate-sub"></p>
+      <div class="notice info" id="gate-info" hidden></div>
+      <label class="field" id="gate-code-row" hidden><span>Setup code</span>
+        <input id="gate-code" type="text" autocomplete="off" spellcheck="false" placeholder="Printed in the server window">
+        <small class="muted">Shown in the terminal or Docker log when NetSentinel starts. It proves you control the server.</small></label>
+      <label class="field" id="gate-user-row"><span>Username</span><input id="gate-user" type="text" autocomplete="username" spellcheck="false"></label>
+      <label class="field" id="gate-pass-row"><span id="gate-pass-label">Password</span><input id="gate-pass" type="password" autocomplete="current-password"></label>
+      <label class="field" id="gate-new-row" hidden><span id="gate-new-label">New password</span><input id="gate-new" type="password" autocomplete="new-password">
+        <div class="meter" id="gate-meter"><i></i><i></i><i></i><i></i></div><small class="muted" id="gate-meter-text"></small></label>
+      <label class="field" id="gate-confirm-row" hidden><span>Type it again</span><input id="gate-confirm" type="password" autocomplete="new-password"></label>
+      <label class="field" id="gate-otp-row" hidden><span id="gate-otp-label">Code from your authenticator app</span>
+        <input id="gate-otp" class="otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="24" spellcheck="false" placeholder="123 456"></label>
+      <button type="button" class="link" id="gate-otp-toggle" hidden>Use a recovery code instead</button>
+      <div class="notice err" id="gate-error" hidden role="alert"></div>
+      <button id="gate-submit" type="submit" class="wide">Sign in</button>
+      <button type="button" class="link center" id="gate-back" hidden>Start over</button>
+      <p class="muted small center">Only scan and monitor networks you own or have permission to test.</p>
+    </form>
+  </div>
 </div>
 
 <div class="app" id="app" hidden>
   <nav class="side" aria-label="Main">
-    <div class="brand">
-      <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><circle cx="16" cy="16" r="12" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="16" cy="16" r="4.5" fill="currentColor"/></svg>
-      <span>NetSentinel</span>
-    </div>
+    <div class="brand"><img src="{{ url_for('static', filename='icon.png') }}" alt="" width="34" height="34"><span>NetSentinel</span></div>
     <div class="nav-list">
-      <button class="nav-item active" data-view="overview"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Overview</span></button>
-      <button class="nav-item" data-view="alerts"><svg viewBox="0 0 24 24"><path d="M6 17V11a6 6 0 1 1 12 0v6l1.5 2h-15z"/><path d="M10 21a2 2 0 0 0 4 0"/></svg><span>Alerts</span><b class="pill" id="nav-alert-count" hidden>0</b></button>
-      <button class="nav-item" data-view="traffic"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Live traffic</span><i class="dot" id="nav-capture-dot" title="Capture is off"></i></button>
-      <button class="nav-item" data-view="scanner"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 12L19 5"/></svg><span>Port scanner</span></button>
-      <button class="nav-item" data-view="devices"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span>Devices</span></button>
-      <button class="nav-item" data-view="settings"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg><span>Settings</span></button>
-      <button class="nav-item admin-only" data-view="users" hidden><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14a6 6 0 0 1 3.5 6"/></svg><span>Users</span></button>
-      <button class="nav-item admin-only" data-view="audit" hidden><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h7"/></svg><span>Audit log</span></button>
-      <button class="nav-item" data-view="help"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/></svg><span>Help</span></button>
+      <span class="nav-label">Monitor</span>
+      <button class="nav-item active" data-view="overview"><svg class="ic"><use href="#i-overview"/></svg><span>Overview</span></button>
+      <button class="nav-item" data-view="alerts"><svg class="ic"><use href="#i-bell"/></svg><span>Alerts</span><b class="pill" id="nav-alert-count" hidden>0</b></button>
+      <button class="nav-item" data-view="traffic"><svg class="ic"><use href="#i-pulse"/></svg><span>Live traffic</span><i class="dot" id="nav-capture-dot" title="Capture is off"></i></button>
+      <button class="nav-item" data-view="devices"><svg class="ic"><use href="#i-devices"/></svg><span>Devices</span></button>
+      <span class="nav-label">Investigate</span>
+      <button class="nav-item" data-view="scanner"><svg class="ic"><use href="#i-radar"/></svg><span>Port scanner</span></button>
+      <button class="nav-item" data-view="learn"><svg class="ic"><use href="#i-book"/></svg><span>Learn</span></button>
+      <span class="nav-label">Manage</span>
+      <button class="nav-item" data-view="account"><svg class="ic"><use href="#i-shield-check"/></svg><span>Account &amp; security</span></button>
+      <button class="nav-item" data-view="settings"><svg class="ic"><use href="#i-sliders"/></svg><span>Settings</span></button>
+      <button class="nav-item admin-only" data-view="users" hidden><svg class="ic"><use href="#i-users"/></svg><span>Users</span></button>
+      <button class="nav-item admin-only" data-view="audit" hidden><svg class="ic"><use href="#i-log"/></svg><span>Audit log</span></button>
     </div>
     <div class="side-foot">
-      <button class="ghost wide needs-analyst" id="btn-demo">Try the demo</button>
-      <div class="who"><div><strong id="who-name"></strong><span class="badge" id="who-role"></span></div>
-        <div class="row"><button class="link" id="btn-account">Password</button><button class="link" id="btn-logout">Sign out</button></div></div>
-      <div class="muted small" id="side-version"></div>
+      <button class="side-demo needs-analyst" id="btn-demo"><svg class="ic"><use href="#i-play"/></svg>Try the demo</button>
+      <div class="side-version" id="side-version"></div>
     </div>
   </nav>
 
-  <main>
-    <div class="banner" id="conn-banner" hidden>Can't reach the NetSentinel server. Retrying...</div>
-    <div class="banner info" id="ro-banner" hidden>You're signed in as a viewer, so you can look but not change anything.</div>
-
-    <!-- OVERVIEW -->
-    <section class="view" id="view-overview">
-      <div class="hero" id="hero">
-        <div class="hero-text"><h1 id="hero-title">Checking...</h1><p id="hero-detail"></p><div class="hero-actions" id="hero-actions"></div></div>
-        <div class="hero-pulse"><div id="spark"></div><div class="muted small" id="spark-label">Traffic, last 60 seconds</div></div>
-      </div>
-      <div class="quickstart" id="quickstart" hidden>
-        <h2>Three ways to get started</h2>
-        <ol>
-          <li><div><strong>See what it can catch</strong><p>Play a harmless pretend attack and watch the alerts appear. Nothing touches your network.</p></div><button data-action="open-demo" class="needs-analyst">Try the demo</button></li>
-          <li><div><strong>Find out what's open on your network</strong><p>Scan your devices for open ports, like Nmap, with each result explained.</p></div><button data-action="goto" data-view="scanner">Open the scanner</button></li>
-          <li><div><strong>Watch real traffic</strong><p>See packets as they happen, like Wireshark. The server needs packet-capture permission.</p></div><button data-action="goto" data-view="traffic">Open live traffic</button></li>
-        </ol>
-      </div>
-      <dl class="facts" id="facts"></dl>
-      <div class="grid2">
-        <div class="panel"><h2>Needs a look</h2><div id="ov-alerts"></div></div>
-        <div class="panel"><h2>Busiest devices</h2><div id="ov-talkers"></div><h2 class="sub">What's on the wire</h2><div id="ov-protos"></div></div>
-      </div>
-    </section>
-
-    <!-- ALERTS -->
-    <section class="view" id="view-alerts" hidden>
-      <header class="view-head"><h1>Alerts</h1><p class="muted">Each alert explains what was seen, what it might mean, and what to do next.</p></header>
-      <div class="toolbar">
-        <div class="seg" id="alert-sev" role="group" aria-label="Severity"><button class="active" data-sev="all">All</button><button data-sev="high">High</button><button data-sev="medium">Medium</button><button data-sev="low">Low</button></div>
-        <select id="alert-status" aria-label="Status"><option value="open">Not reviewed</option><option value="reviewed">Reviewed</option><option value="all">Everything</option></select>
-        <label class="check"><input type="checkbox" id="alert-demo" checked> Include demo alerts</label>
-        <span class="spacer"></span>
-        <button class="ghost needs-analyst" id="btn-review-all">Mark all reviewed</button>
-        <a class="btn ghost" id="lnk-csv" href="/api/export/alerts.csv" download>Export CSV</a>
-        <a class="btn" id="lnk-report" href="/api/export/report.md" download>Download report</a>
-      </div>
-      <div id="alert-list"></div>
-    </section>
-
-    <!-- TRAFFIC -->
-    <section class="view" id="view-traffic" hidden>
-      <header class="view-head"><h1>Live traffic</h1><p class="muted">A friendlier packet viewer. Filter with words like <code>tcp</code>, <code>dns</code>, <code>port:443</code>, <code>ip:192.168.1.5</code>.</p></header>
-      <div class="panel capture-bar">
-        <div class="capture-state"><i class="dot" id="cap-dot"></i><strong id="cap-title">Capture is off</strong><span class="muted" id="cap-sub"></span></div>
-        <div class="capture-controls"><select id="cap-iface" aria-label="Network interface"></select><button id="btn-capture" class="needs-analyst">Start capture</button></div>
-        <div class="notice warn" id="cap-notice" hidden></div>
-      </div>
-      <div class="toolbar">
-        <div class="seg" id="traffic-tabs" role="group"><button class="active" data-tab="packets">Packets</button><button data-tab="flows">Conversations</button></div>
-        <input type="search" id="pkt-filter" placeholder="Filter: tcp, dns, port:443, ip:10.0.0.5, or any word" aria-label="Packet filter">
-        <button class="ghost" id="btn-pause">Pause</button>
-        <button class="ghost needs-analyst" id="btn-clear-pkts">Clear</button>
-        <a class="btn ghost" id="lnk-pkts" href="/api/export/packets.csv" download>Export CSV</a>
-      </div>
-      <div class="split">
-        <div class="table-wrap tall" id="pkt-wrap">
-          <table id="pkt-table"><thead><tr><th>Time</th><th>From</th><th>To</th><th>Protocol</th><th class="num">Size</th><th>What it is</th></tr></thead><tbody id="pkt-body"></tbody></table>
-          <div class="empty" id="pkt-empty"></div>
+  <div class="main-col">
+    <header class="topbar">
+      <h2 class="topbar-title" id="topbar-title">Overview</h2>
+      <div class="topbar-right">
+        <span class="chip demo" id="chip-demo" hidden><i class="dot on demo"></i>Demo running</span>
+        <span class="chip" id="chip-capture"><i class="dot"></i><span>Capture off</span></span>
+        <button class="icon-btn" id="btn-theme" type="button" title="Switch light / dark theme" aria-label="Switch light or dark theme"><svg class="ic"><use href="#i-moon"/></svg></button>
+        <div class="user-menu">
+          <button class="user-btn" id="btn-user" type="button" aria-haspopup="true" aria-expanded="false"><span class="avatar" id="who-avatar">?</span><span class="who-text"><strong id="who-name"></strong><span id="who-role" class="role-text"></span></span></button>
+          <div class="menu" id="user-menu" hidden>
+            <button data-action="goto" data-view="account"><svg class="ic"><use href="#i-shield-check"/></svg>Account &amp; security</button>
+            <button id="btn-logout"><svg class="ic"><use href="#i-logout"/></svg>Sign out</button>
+          </div>
         </div>
-        <aside class="detail" id="pkt-detail" hidden></aside>
       </div>
-      <div class="table-wrap tall" id="flow-wrap" hidden>
-        <table><thead><tr><th>From</th><th>To</th><th>Port</th><th>Protocol</th><th class="num">Packets</th><th class="num">Data</th><th>Last seen</th></tr></thead><tbody id="flow-body"></tbody></table>
-        <div class="empty" id="flow-empty"></div>
-      </div>
-    </section>
+    </header>
 
-    <!-- SCANNER -->
-    <section class="view" id="view-scanner" hidden>
-      <header class="view-head"><h1>Port scanner</h1><p class="muted">Finds open "doors" on devices and explains which ones deserve attention. Scans run from the NetSentinel server.</p></header>
-      <div class="panel scan-form" id="scan-form">
-        <label class="field grow"><span>What do you want to scan?</span>
-          <div class="inline"><input id="scan-target" type="text" value="127.0.0.1" spellcheck="false" placeholder="192.168.1.0/24, 192.168.1.10-50, or a hostname"><button class="ghost" id="btn-my-net" hidden>Use my network</button></div>
-          <small class="muted" id="scan-target-help">One device, a range, or a whole network. Up to 1,024 devices at once.</small></label>
-        <fieldset class="field"><legend>How thorough?</legend><div class="radios" id="scan-presets"></div>
-          <input id="scan-ports" type="text" placeholder="e.g. 22,80,443,8000-8100" spellcheck="false" hidden></fieldset>
-        <label class="check consent"><input type="checkbox" id="scan-consent"> I own this network or have permission to scan it</label>
-        <div class="row"><button id="btn-scan">Start scan</button><button class="ghost" id="btn-scan-cancel" hidden>Cancel</button></div>
-        <div class="progress" id="scan-progress" hidden><div class="bar"><i id="scan-bar"></i></div><span class="muted small" id="scan-phase"></span></div>
-        <div class="notice err" id="scan-error" hidden></div>
-      </div>
-      <div id="scan-results"></div>
-      <div class="panel" id="scan-history-panel" hidden><h2>Earlier scans</h2><div id="scan-history"></div></div>
-    </section>
+    <main>
+      <div class="banner" id="conn-banner" hidden>Can't reach the NetSentinel server. Retrying...</div>
+      <div class="banner info" id="ro-banner" hidden>You're signed in as a viewer, so you can look but not change anything.</div>
 
-    <!-- DEVICES -->
-    <section class="view" id="view-devices" hidden>
-      <header class="view-head"><h1>Devices</h1><p class="muted">Devices NetSentinel has noticed, from scans and from live capture.</p></header>
-      <div class="table-wrap"><table><thead><tr><th>Address</th><th>Hardware (MAC)</th><th>Found by</th><th>First seen</th><th>Last seen</th><th>Notes</th></tr></thead><tbody id="dev-body"></tbody></table><div class="empty" id="dev-empty"></div></div>
-    </section>
+      <!-- OVERVIEW -->
+      <section class="view" id="view-overview">
+        <div class="hero" id="hero">
+          <div class="hero-badge"><svg class="ic" id="hero-icon"><use href="#i-shield-check"/></svg></div>
+          <div class="hero-text"><p class="eyebrow">Network status</p><h1 id="hero-title">Checking...</h1><p id="hero-detail"></p><div class="hero-actions" id="hero-actions"></div></div>
+          <div class="hero-pulse"><div id="spark"></div><div class="small" id="spark-label">Traffic, last 60 seconds</div></div>
+        </div>
+        <div class="nudge" id="ov-nudge" hidden>
+          <svg class="ic"><use href="#i-key"/></svg>
+          <div><strong>Protect your account with two-factor sign-in</strong><p>A stolen password alone won't be enough to get in. It takes about a minute with any authenticator app.</p></div>
+          <button data-action="goto" data-view="account">Set it up</button>
+        </div>
+        <div class="quickstart" id="quickstart" hidden>
+          <h2>Three ways to get started</h2>
+          <ol>
+            <li><div><strong>See what it can catch</strong><p>Play a harmless pretend attack and watch the alerts appear. Nothing touches your network.</p></div><button data-action="open-demo" class="needs-analyst">Try the demo</button></li>
+            <li><div><strong>Find out what's open on your network</strong><p>Scan your devices for open ports, like Nmap, with each result explained.</p></div><button class="ghost" data-action="goto" data-view="scanner">Open the scanner</button></li>
+            <li><div><strong>Learn the language</strong><p>What is a port scan? What does T1046 mean? The Learn section explains every term you'll see.</p></div><button class="ghost" data-action="goto" data-view="learn">Open Learn</button></li>
+          </ol>
+        </div>
+        <div class="stats" id="facts"></div>
+        <div class="grid2">
+          <div class="panel"><div class="panel-head"><h2>Needs a look</h2><button class="link" data-action="goto" data-view="alerts">All alerts</button></div><div id="ov-alerts"></div></div>
+          <div class="panel"><h2>Busiest devices</h2><div id="ov-talkers"></div><h2 class="sub">What's on the wire</h2><div id="ov-protos"></div></div>
+        </div>
+      </section>
 
-    <!-- SETTINGS -->
-    <section class="view" id="view-settings" hidden>
-      <header class="view-head"><h1>Settings</h1><p class="muted">The defaults suit a home or small office. Raise a number to get fewer alerts; lower it to be more sensitive.</p></header>
-      <div class="notice" id="settings-ro" hidden>Only administrators can change settings. You can see the current values.</div>
-      <form id="settings-form" class="settings" autocomplete="off"></form>
-      <div class="row sticky admin-only" hidden><button id="btn-save-settings">Save settings</button><button class="ghost" id="btn-reset-settings">Restore defaults</button><span class="muted" id="settings-msg"></span></div>
-      <div class="panel"><h2>Where your data lives</h2><p class="muted small">Alerts, scan history and logs are stored on the server in:</p><code id="data-dir"></code></div>
-    </section>
+      <!-- ALERTS -->
+      <section class="view" id="view-alerts" hidden>
+        <header class="view-head"><h1>Alerts</h1><p class="muted">Each alert explains what was seen, what it might mean, and what to do next. Tags like <span class="tag-sample">T1046</span> link to the MITRE ATT&amp;CK guide in Learn.</p></header>
+        <div class="toolbar">
+          <div class="seg" id="alert-sev" role="group" aria-label="Severity"><button class="active" data-sev="all">All</button><button data-sev="high">High</button><button data-sev="medium">Medium</button><button data-sev="low">Low</button></div>
+          <select id="alert-status" aria-label="Status"><option value="open">Not reviewed</option><option value="reviewed">Reviewed</option><option value="all">Everything</option></select>
+          <label class="check"><input type="checkbox" id="alert-demo" checked> Include demo alerts</label>
+          <span class="spacer"></span>
+          <button class="ghost needs-analyst" id="btn-review-all">Mark all reviewed</button>
+          <a class="btn ghost" id="lnk-csv" href="/api/export/alerts.csv" download><svg class="ic"><use href="#i-download"/></svg>CSV</a>
+          <a class="btn" id="lnk-report" href="/api/export/report.md" download><svg class="ic"><use href="#i-download"/></svg>Report</a>
+        </div>
+        <div id="alert-list"></div>
+      </section>
 
-    <!-- USERS -->
-    <section class="view" id="view-users" hidden>
-      <header class="view-head"><h1>Users</h1><p class="muted">Who can sign in, and what they're allowed to do.</p></header>
-      <div class="panel"><h2>Add a user</h2>
-        <form class="user-form" id="user-form" autocomplete="off">
-          <label class="field"><span>Username</span><input id="nu-name" type="text" required autocomplete="off"></label>
-          <label class="field"><span>Temporary password</span><input id="nu-pass" type="password" required autocomplete="new-password"></label>
-          <label class="field"><span>Role</span><select id="nu-role"></select></label>
-          <button type="submit">Add user</button>
-        </form><div class="notice err" id="user-error" hidden></div>
-        <dl class="roles" id="role-help"></dl>
-      </div>
-      <div class="table-wrap"><table><thead><tr><th>User</th><th>Role</th><th>Last sign-in</th><th>Status</th><th></th></tr></thead><tbody id="user-body"></tbody></table></div>
-    </section>
+      <!-- TRAFFIC -->
+      <section class="view" id="view-traffic" hidden>
+        <header class="view-head"><h1>Live traffic</h1><p class="muted">A friendlier packet viewer. Filter with words like <code>tcp</code>, <code>dns</code>, <code>port:443</code>, <code>ip:192.168.1.5</code>.</p></header>
+        <div class="panel capture-bar">
+          <div class="capture-state"><i class="dot" id="cap-dot"></i><strong id="cap-title">Capture is off</strong><span class="muted" id="cap-sub"></span></div>
+          <div class="capture-controls"><select id="cap-iface" aria-label="Network interface"></select><button id="btn-capture" class="needs-analyst">Start capture</button></div>
+          <div class="notice warn" id="cap-notice" hidden></div>
+        </div>
+        <div class="toolbar">
+          <div class="seg" id="traffic-tabs" role="group"><button class="active" data-tab="packets">Packets</button><button data-tab="flows">Conversations</button></div>
+          <div class="search"><svg class="ic"><use href="#i-search"/></svg><input type="search" id="pkt-filter" placeholder="Filter: tcp, dns, port:443, ip:10.0.0.5, or any word" aria-label="Packet filter"></div>
+          <button class="ghost" id="btn-pause">Pause</button>
+          <button class="ghost needs-analyst" id="btn-clear-pkts">Clear</button>
+          <a class="btn ghost" id="lnk-pkts" href="/api/export/packets.csv" download><svg class="ic"><use href="#i-download"/></svg>CSV</a>
+        </div>
+        <div class="split">
+          <div class="table-wrap tall" id="pkt-wrap">
+            <table id="pkt-table"><thead><tr><th>Time</th><th>From</th><th>To</th><th>Protocol</th><th class="num">Size</th><th>What it is</th></tr></thead><tbody id="pkt-body"></tbody></table>
+            <div class="empty" id="pkt-empty"></div>
+          </div>
+          <aside class="detail" id="pkt-detail" hidden></aside>
+        </div>
+        <div class="table-wrap tall" id="flow-wrap" hidden>
+          <table><thead><tr><th>From</th><th>To</th><th>Port</th><th>Protocol</th><th class="num">Packets</th><th class="num">Data</th><th>Last seen</th></tr></thead><tbody id="flow-body"></tbody></table>
+          <div class="empty" id="flow-empty"></div>
+        </div>
+      </section>
 
-    <!-- AUDIT -->
-    <section class="view" id="view-audit" hidden>
-      <header class="view-head"><h1>Audit log</h1><p class="muted">A record of who signed in and who did what, newest first. It can't be edited from the app.</p></header>
-      <div class="table-wrap tall"><table><thead><tr><th>When</th><th>User</th><th>Action</th><th>Details</th><th>From</th></tr></thead><tbody id="audit-body"></tbody></table><div class="empty" id="audit-empty"></div></div>
-    </section>
+      <!-- SCANNER -->
+      <section class="view" id="view-scanner" hidden>
+        <header class="view-head"><h1>Port scanner</h1><p class="muted">Finds open "doors" on devices and explains which ones deserve attention. Scans run from the NetSentinel server.</p></header>
+        <div class="panel scan-form" id="scan-form">
+          <label class="field grow"><span>What do you want to scan?</span>
+            <div class="inline"><input id="scan-target" type="text" value="127.0.0.1" spellcheck="false" placeholder="192.168.1.0/24, 192.168.1.10-50, or a hostname"><button class="ghost" id="btn-my-net" hidden>Use my network</button></div>
+            <small class="muted" id="scan-target-help">One device, a range, or a whole network. Up to 1,024 devices at once.</small></label>
+          <fieldset class="field"><legend>How thorough?</legend><div class="radios" id="scan-presets"></div>
+            <input id="scan-ports" type="text" placeholder="e.g. 22,80,443,8000-8100" spellcheck="false" hidden></fieldset>
+          <label class="check consent"><input type="checkbox" id="scan-consent"> I own this network or have permission to scan it</label>
+          <div class="row"><button id="btn-scan"><svg class="ic"><use href="#i-radar"/></svg>Start scan</button><button class="ghost" id="btn-scan-cancel" hidden>Cancel</button></div>
+          <div class="progress" id="scan-progress" hidden><div class="bar"><i id="scan-bar"></i></div><span class="muted small" id="scan-phase"></span></div>
+          <div class="notice err" id="scan-error" hidden></div>
+        </div>
+        <div id="scan-results"></div>
+        <div class="panel" id="scan-history-panel" hidden><h2>Earlier scans</h2><div id="scan-history"></div></div>
+      </section>
 
-    <!-- HELP -->
-    <section class="view" id="view-help" hidden>
-      <header class="view-head"><h1>Help</h1></header>
-      <div class="panel prose">
-        <h2>How NetSentinel works</h2>
-        <p><strong>Scanner</strong> knocks on devices you choose and reports which ports answer. <strong>Live traffic</strong> listens to the packets on the network the server is connected to and flags suspicious patterns. <strong>Alerts</strong> explain each finding in plain English.</p>
-        <p>NetSentinel is self-hosted: everything runs on your own server and nothing is sent anywhere else.</p>
-        <h2>Who can do what</h2>
-        <div id="help-roles"></div>
-        <h2>Please scan responsibly</h2>
-        <p>Only scan and monitor networks you own or have written permission to test. Unauthorised scanning can be illegal (for example under the US Computer Fraud and Abuse Act and similar laws elsewhere). Every scan is recorded in the audit log.</p>
-        <h2>Words you'll see</h2>
-        <div id="glossary"></div>
-        <h2>Live capture requirements</h2>
-        <p>Packets are captured by the server, so it sees the traffic of the network it's plugged into (a switch mirror port is needed to see other devices' traffic). The server process needs root or the NET_RAW capability (Windows: Administrator and <a href="https://npcap.com" target="_blank" rel="noopener noreferrer">Npcap</a>). Scanning and the demo need neither.</p>
-      </div>
-    </section>
-  </main>
+      <!-- DEVICES -->
+      <section class="view" id="view-devices" hidden>
+        <header class="view-head"><h1>Devices</h1><p class="muted">Devices NetSentinel has noticed, from scans and from live capture.</p></header>
+        <div class="table-wrap"><table><thead><tr><th>Address</th><th>Hardware (MAC)</th><th>Found by</th><th>First seen</th><th>Last seen</th><th>Notes</th></tr></thead><tbody id="dev-body"></tbody></table><div class="empty" id="dev-empty"></div></div>
+      </section>
+
+      <!-- LEARN -->
+      <section class="view" id="view-learn" hidden>
+        <header class="view-head"><h1>Learn</h1><p class="muted">Everything NetSentinel shows you, explained: how it works, what MITRE ATT&amp;CK is, exactly when each alert fires, and a glossary of the terms you'll meet.</p></header>
+        <div class="seg tabs" id="learn-tabs" role="tablist"><button class="active" data-ltab="start">Start here</button><button data-ltab="attack">MITRE ATT&amp;CK</button><button data-ltab="rules">Detection rules</button><button data-ltab="glossary">Glossary</button></div>
+
+        <div class="learn-pane" id="learn-start">
+          <div class="cards3">
+            <div class="card feature"><span class="feat-ic"><svg class="ic"><use href="#i-radar"/></svg></span><h3>Port scanner</h3><p>Knocks on the devices you choose and reports which ports answer, what's probably behind each one, and whether it's risky.</p></div>
+            <div class="card feature"><span class="feat-ic"><svg class="ic"><use href="#i-pulse"/></svg></span><h3>Live traffic</h3><p>Listens to the packets on the network the server is connected to and runs ten detection rules over them, in real time.</p></div>
+            <div class="card feature"><span class="feat-ic"><svg class="ic"><use href="#i-bell"/></svg></span><h3>Alerts</h3><p>Turn each finding into plain English: what we saw, what it might mean, and what to do, with the matching MITRE ATT&amp;CK technique.</p></div>
+          </div>
+          <div class="panel prose">
+            <h2>Who can do what</h2>
+            <div id="help-roles" class="role-list"></div>
+            <h2>Please scan responsibly</h2>
+            <p>Only scan and monitor networks you own or have written permission to test. Unauthorised scanning can be illegal (for example under the US Computer Fraud and Abuse Act and similar laws elsewhere). Every scan is recorded in the audit log.</p>
+            <h2>Live capture requirements</h2>
+            <p>Packets are captured by the server, so it sees the traffic of the network it's plugged into (a switch mirror port is needed to see other devices' traffic). The server process needs root or the NET_RAW capability (Windows: Administrator and <a href="https://npcap.com" target="_blank" rel="noopener noreferrer">Npcap</a>). Scanning and the demo need neither.</p>
+            <h2>Keeping your account safe</h2>
+            <p>Turn on two-factor sign-in under <button class="link inline-link" data-action="goto" data-view="account">Account &amp; security</button>. You'll be signed out after a period without activity, and you can see and end every signed-in session from the same page.</p>
+          </div>
+        </div>
+        <div class="learn-pane" id="learn-attack" hidden></div>
+        <div class="learn-pane" id="learn-rules" hidden></div>
+        <div class="learn-pane" id="learn-glossary" hidden>
+          <div class="toolbar">
+            <div class="search grow"><svg class="ic"><use href="#i-search"/></svg><input type="search" id="gloss-search" placeholder="Search terms, e.g. SYN, beacon, CSRF" aria-label="Search the glossary"></div>
+          </div>
+          <div class="chips" id="gloss-cats"></div>
+          <div class="gloss-grid" id="glossary"></div>
+          <div class="empty" id="gloss-empty"></div>
+        </div>
+      </section>
+
+      <!-- ACCOUNT -->
+      <section class="view" id="view-account" hidden>
+        <header class="view-head"><h1>Account &amp; security</h1><p class="muted">Your password, two-factor sign-in, where you're signed in, and recent activity on your account.</p></header>
+        <div class="acct-top" id="acct-profile"></div>
+        <div class="grid2 even">
+          <div class="panel" id="acct-2fa"></div>
+          <div class="panel">
+            <h2><svg class="ic h-ic"><use href="#i-key"/></svg>Password</h2>
+            <form id="acct-pw-form" class="stack" autocomplete="off">
+              <input type="text" autocomplete="username" id="acct-pw-user" hidden>
+              <label class="field"><span>Current password</span><input id="acct-pw-current" type="password" autocomplete="current-password" required></label>
+              <label class="field"><span>New password</span><input id="acct-pw-new" type="password" autocomplete="new-password" required>
+                <div class="meter" id="acct-meter"><i></i><i></i><i></i><i></i></div><small class="muted" id="acct-meter-text"></small></label>
+              <label class="field"><span>Type it again</span><input id="acct-pw-confirm" type="password" autocomplete="new-password" required></label>
+              <div class="notice err" id="acct-pw-error" hidden></div>
+              <div class="row"><button type="submit">Change password</button><small class="muted">Your other sessions will be signed out.</small></div>
+            </form>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2><svg class="ic h-ic"><use href="#i-laptop"/></svg>Where you're signed in</h2><button class="ghost small" id="btn-revoke-others">Sign out everywhere else</button></div>
+          <p class="muted small" id="acct-session-note"></p>
+          <div id="acct-sessions"></div>
+        </div>
+        <div class="panel">
+          <h2><svg class="ic h-ic"><use href="#i-log"/></svg>Recent activity</h2>
+          <p class="muted small">Sign-ins and security changes on your account. If you don't recognise something, change your password and sign out everywhere else.</p>
+          <div class="table-wrap flat"><table><thead><tr><th>When</th><th>What</th><th>Details</th><th>From</th></tr></thead><tbody id="acct-activity"></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="view" id="view-settings" hidden>
+        <header class="view-head"><h1>Settings</h1><p class="muted">The defaults suit a home or small office. Raise a number to get fewer alerts; lower it to be more sensitive.</p></header>
+        <div class="notice" id="settings-ro" hidden>Only administrators can change settings. You can see the current values.</div>
+        <form id="settings-form" class="settings" autocomplete="off"></form>
+        <div class="row sticky admin-only" hidden><button id="btn-save-settings">Save settings</button><button class="ghost" id="btn-reset-settings">Restore defaults</button><span class="muted" id="settings-msg"></span></div>
+        <div class="panel"><h2>Where your data lives</h2><p class="muted small">Alerts, users, scan history and logs are stored on the server in:</p><code id="data-dir"></code></div>
+      </section>
+
+      <!-- USERS -->
+      <section class="view" id="view-users" hidden>
+        <header class="view-head"><h1>Users</h1><p class="muted">Who can sign in, what they're allowed to do, and how well their accounts are protected.</p></header>
+        <div class="user-summary" id="user-summary"></div>
+        <div class="panel"><h2>Add a user</h2>
+          <form class="user-form" id="user-form" autocomplete="off">
+            <label class="field"><span>Username</span><input id="nu-name" type="text" required autocomplete="off" spellcheck="false"></label>
+            <label class="field"><span>Temporary password</span><input id="nu-pass" type="password" required autocomplete="new-password"></label>
+            <label class="field"><span>Role</span><select id="nu-role"></select></label>
+            <button type="submit">Add user</button>
+            <label class="check span-all"><input type="checkbox" id="nu-must" checked> Ask them to choose their own password when they first sign in</label>
+          </form><div class="notice err" id="user-error" hidden></div>
+          <dl class="roles" id="role-help"></dl>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>User</th><th>Role</th><th>Two-factor</th><th>Last sign-in</th><th>Status</th><th></th></tr></thead><tbody id="user-body"></tbody></table></div>
+      </section>
+
+      <!-- AUDIT -->
+      <section class="view" id="view-audit" hidden>
+        <header class="view-head"><h1>Audit log</h1><p class="muted">A record of who signed in and who did what, newest first. It can't be edited from the app.</p></header>
+        <div class="table-wrap tall"><table><thead><tr><th>When</th><th>User</th><th>Action</th><th>Details</th><th>From</th></tr></thead><tbody id="audit-body"></tbody></table><div class="empty" id="audit-empty"></div></div>
+      </section>
+    </main>
+  </div>
 </div>
 
 <dialog id="demo-dialog">
-  <form method="dialog" class="dlg-head"><h2>Try the demo</h2><button class="ghost" aria-label="Close">Close</button></form>
+  <form method="dialog" class="dlg-head"><h2>Try the demo</h2><button class="ghost small" aria-label="Close">Close</button></form>
   <p class="muted">Pretend traffic is played through the same detection engine as real traffic. Demo items are labelled and never touch your network or your SIEM log file.</p>
   <div id="demo-list"></div>
   <div class="row"><button class="ghost needs-analyst" id="btn-demo-clear">Remove all demo data</button></div>
 </dialog>
-<dialog id="pw-dialog">
-  <form id="pw-form" autocomplete="off">
-    <div class="dlg-head"><h2>Change your password</h2></div>
-    <label class="field"><span>Current password</span><input id="pw-current" type="password" autocomplete="current-password" required></label>
-    <label class="field"><span>New password</span><input id="pw-new" type="password" autocomplete="new-password" required><small class="muted">At least 10 characters. You'll be signed out everywhere afterwards.</small></label>
-    <div class="notice err" id="pw-error" hidden></div>
-    <div class="row"><button type="submit">Change password</button><button type="button" class="ghost" id="pw-cancel">Cancel</button></div>
+
+<dialog id="tfa-dialog">
+  <div class="dlg-head"><h2>Turn on two-factor sign-in</h2><button class="ghost small" id="tfa-close" type="button">Close</button></div>
+  <div class="steps" id="tfa-steps"><span class="active">1 Scan</span><span>2 Confirm</span><span>3 Save codes</span></div>
+  <div id="tfa-step1">
+    <p>Open an authenticator app on your phone (Google Authenticator, Microsoft Authenticator, Authy, 1Password, Bitwarden...) and scan this code.</p>
+    <div class="qr-wrap"><img id="tfa-qr" alt="QR code for your authenticator app" width="200" height="200"></div>
+    <details class="secret"><summary>Can't scan it? Type this key instead</summary><code id="tfa-secret"></code><p class="muted small">Choose "time-based" if the app asks.</p></details>
+    <div class="row end"><button id="tfa-next" type="button">Next</button></div>
+  </div>
+  <form id="tfa-step2" hidden autocomplete="off">
+    <label class="field"><span>The 6-digit code your app shows now</span><input id="tfa-code" class="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required></label>
+    <label class="field"><span>Your password</span><input id="tfa-pass" type="password" autocomplete="current-password" required></label>
+    <div class="notice err" id="tfa-error" hidden></div>
+    <div class="row end"><button type="button" class="ghost" id="tfa-back">Back</button><button type="submit">Turn on</button></div>
+  </form>
+  <div id="tfa-step3" hidden>
+    <div class="notice ok"><strong>Two-factor sign-in is on.</strong> From now on you'll enter a code from your app after your password.</div>
+    <div class="codes-block" id="tfa-codes"></div>
+    <div class="row end"><button type="button" id="tfa-done">I've saved my codes</button></div>
+  </div>
+</dialog>
+
+<dialog id="codes-dialog">
+  <div class="dlg-head"><h2>Your new recovery codes</h2></div>
+  <div class="codes-block" id="codes-list"></div>
+  <div class="row end"><button type="button" id="codes-done">I've saved them</button></div>
+</dialog>
+
+<dialog id="ask-dialog">
+  <form id="ask-form" autocomplete="off">
+    <div class="dlg-head"><h2 id="ask-title"></h2></div>
+    <p class="muted" id="ask-text"></p>
+    <div id="ask-fields" class="stack"></div>
+    <div class="notice err" id="ask-error" hidden></div>
+    <div class="row end"><button type="button" class="ghost" id="ask-cancel">Cancel</button><button type="submit" id="ask-ok">Confirm</button></div>
   </form>
 </dialog>
+
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>

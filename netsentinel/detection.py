@@ -5,6 +5,7 @@ Rules count NEW CONNECTIONS (SYN without ACK, or UDP), not every packet; scans a
 (source, target), sweeps per (source, port); beaconing needs public, non-DNS/NTP destinations;
 windows are incremental so a busy network can't stall capture. Events may carry their own clock.
 """
+import heapq
 import ipaddress
 import threading
 import time
@@ -255,8 +256,14 @@ class DetectionEngine:
             return sorted((dict(d) for d in self.devices.values()),
                           key=lambda d: [int(x) if x.isdigit() else 0 for x in d["ip"].split(".")])
 
+    MAX_WINDOWS = 20_000    # per table; bounds memory when traffic hits many distinct addresses
+
     def _gc(self):
         cutoff = time.time() - 600
         for table in (self._scan, self._sweep, self._beacon, self._exfil, self._syn):
             for k in [k for k, v in table.items() if v.touched < cutoff]:
                 del table[k]
+            extra = len(table) - self.MAX_WINDOWS
+            if extra > 0:   # evict the least recently used windows; active attackers keep theirs
+                for k, _ in heapq.nsmallest(extra, table.items(), key=lambda kv: kv[1].touched):
+                    del table[k]

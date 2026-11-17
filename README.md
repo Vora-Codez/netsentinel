@@ -6,6 +6,8 @@ Built for people who aren't network experts: every alert says *what was seen*, *
 
 ![Overview with demo data](docs/screenshots/03-overview-demo.png)
 
+<p align="center"><img src="docs/screenshots/05-learn-attack.png" width="49%" alt="Learn: MITRE ATT&CK guide"> <img src="docs/screenshots/17-overview-dark.png" width="49%" alt="Dark theme"></p>
+
 ## What it does
 
 | | |
@@ -15,7 +17,9 @@ Built for people who aren't network experts: every alert says *what was seen*, *
 | **Detection engine** | 10 rules mapped to MITRE ATT&CK (below). Counts new *connections* rather than packets, de-duplicates repeats, and has tunable thresholds. |
 | **Plain-English alerts** | Each alert explains itself and links to its ATT&CK technique. Review workflow, filters, CSV export and a Markdown incident report. |
 | **Demo mode** | Nine safe scenarios (port scan, beaconing, ARP spoofing, SYN flood, exfiltration, a full attack chain…) so anyone can see it work without admin rights. Demo data is labelled and never written to the SIEM feed. |
-| **Accounts & audit** | Sign-in with three roles, user management, and an audit trail of every sign-in, scan, setting change and denied action. |
+| **Learn** | A built-in guide: what MITRE ATT&CK is and how to read its IDs, the 14 tactics with what NetSentinel can see, a page per technique (what it looks like on the network, how to defend), the exact trigger for every rule using your live settings, and a searchable glossary of 60 networking and security terms. |
+| **Account security** | Two-factor sign-in (TOTP, any authenticator app, QR setup) with one-time recovery codes; server-side sessions you can see and end; idle sign-out; forced password change for admin-issued passwords; lockout per account and per address. |
+| **Roles & audit** | Three roles, user management with two-factor status, and an audit trail of every sign-in, scan, setting change and denied action. |
 | **SIEM-friendly** | Live alerts are also appended to rotating `alerts.jsonl` for Splunk / Elastic / Sentinel ingestion. |
 
 | Detection | MITRE ATT&CK |
@@ -25,7 +29,7 @@ Built for people who aren't network experts: every alert says *what was seen*, *
 | Known-malicious port contacted | T1571 |
 | C2 beaconing (regular outbound timing) | T1071 |
 | Data exfiltration (large upload to one outside host) | T1041 |
-| SYN flood / connection burst | T1498 |
+| SYN flood / connection burst | T1499 (was T1498 in 3.0) |
 | ARP spoofing (MAC binding change) | T1557 |
 | Blocked-IP match · cleartext protocol use · new device | — |
 
@@ -35,6 +39,14 @@ Download `NetSentinel.exe` from the [Releases](../../releases) page (built autom
 Double-click it: a console window opens (it shows the first-run setup code), your browser opens to `http://127.0.0.1:8765`, and your data is kept in a `NetSentinel-data` folder next to the exe.
 Live packet capture needs [Npcap](https://npcap.com) installed and the exe started with **Run as administrator**; scanning and everything else works without either.
 Windows SmartScreen may warn about an unsigned app: choose *More info, Run anyway*. To change the exe's icon, replace `assets/icon.ico` (multi-size .ico, 256x256 max) and rebuild. To build it yourself: `pip install -r requirements.txt pyinstaller && pyinstaller netsentinel.spec`.
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Sign in](docs/screenshots/15-sign-in.png) | ![Two-factor setup](docs/screenshots/10-two-factor-setup.png) |
+| ![Alerts with ATT&CK](docs/screenshots/04-alerts.png) | ![Detection rules](docs/screenshots/06-learn-rules.png) |
+| ![Account and sessions](docs/screenshots/11-account.png) | ![Glossary](docs/screenshots/07-learn-glossary.png) |
 
 ## Quick start
 
@@ -70,9 +82,12 @@ Forgot the admin password? `python -m netsentinel reset-password <user>` (run on
 NetSentinel is a security tool that can send traffic, so it is locked down by default:
 
 - Binds to `127.0.0.1` unless you say otherwise; warns when exposed without HTTPS.
-- Passwords hashed with scrypt; 10-character minimum; login lockout after repeated failures; identical error for unknown user vs wrong password.
+- Passwords hashed with scrypt (N=2^15, 32 MiB per guess; older hashes are upgraded at sign-in); 12-character minimum with checks against common passwords, the username, and "word + numbers" patterns; identical error and timing for unknown user vs wrong password.
+- Optional two-factor sign-in: RFC 6238 TOTP with replay protection, 10 single-use recovery codes stored hashed, QR code generated on the server (no third-party service).
+- Server-side sessions: only a SHA-256 of the session token is stored; sessions end after an idle period (default 30 min, background polling doesn't count) and after 12 hours; users can list and end their sessions; admins can sign a user out.
+- Lockout after 5 failures per address + account, and after 20 failures per address across accounts (password spraying); 2FA codes are rate-limited separately.
 - Signed `HttpOnly`, `SameSite=Strict` session cookie; per-session CSRF token on every state-changing call; Origin checks; Host allow-list against DNS rebinding.
-- Changing a user's role, password or status signs them out everywhere immediately.
+- Changing a user's role, password or status signs them out everywhere immediately; admin-issued passwords must be changed at first sign-in.
 - Strict Content-Security-Policy (no inline script or style); every dynamic value is HTML-escaped because banners, DNS names and packet text are attacker-controlled; CSV exports neutralise formula injection.
 - Scanner guardrails: private ranges only for non-admins, a consent confirmation, probe-count caps, and a hard block on link-local (cloud metadata), multicast and reserved ranges.
 - First-run setup requires a code from the server log, so nobody can claim an exposed fresh install.
@@ -91,15 +106,17 @@ See [SECURITY.md](SECURITY.md) for details and how to report issues.
 ```
 netsentinel/
   server.py      Flask app: sessions, roles, API
-  auth.py        users, scrypt, throttling, audit trail
+  auth.py        users, scrypt, sessions, two-factor, throttling, audit trail
+  mfa.py         TOTP (RFC 6238) and recovery codes
+  qr.py          dependency-free QR code encoder for the 2FA setup screen
   detection.py   rule engine (sliding windows, MITRE mapping)
   capture.py     Scapy capture, packet/flow buffers, filter language
   scanner.py     target/port parsing, probing, scan jobs
   simulator.py   demo scenarios
-  knowledge.py   plain-English alert + port explanations
+  knowledge.py   plain-English alerts, MITRE ATT&CK guide, glossary, port advice
   alerts.py db.py config.py reports.py core.py env.py
   web/           templates + static (no frameworks, works offline)
-tests/           60 unit/API tests + a Playwright browser test
+tests/           92 unit/API tests + a Playwright browser test
 ```
 
 ## Development
@@ -113,7 +130,7 @@ python tests/e2e_browser.py                        # drives the real UI and refr
 ## Roadmap
 
 - [ ] Webhook / Slack / email alerting
-- [ ] Two-factor authentication
+- [x] Two-factor authentication (3.1)
 - [ ] Scheduled scans and scan-to-scan diffing
 - [ ] Persisted detection baselines
 - [ ] Optional OIDC single sign-on

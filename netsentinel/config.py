@@ -18,6 +18,7 @@ DEFAULTS = {
     "beacon_ignore_ports": [53, 123, 5353],
     "scan_timeout": 0.8, "scan_workers": 150,
     "capture_iface": "", "log_packets_jsonl": False,
+    "session_idle_minutes": 30,
 }
 LIMITS = {
     "port_scan_threshold": (3, 1000), "port_scan_window": (1, 600),
@@ -25,6 +26,7 @@ LIMITS = {
     "beacon_min_hits": (3, 50), "beacon_jitter_pct": (1, 90), "exfil_mb": (1, 100000),
     "exfil_window": (5, 3600), "syn_flood_threshold": (20, 100000), "alert_cooldown": (0, 86400),
     "scan_timeout": (0.1, 10), "scan_workers": (1, 500),
+    "session_idle_minutes": (5, 1440),
 }
 
 
